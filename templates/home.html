@@ -1,51 +1,217 @@
 {% extends 'base.html' %} {% block scripts %}
 <script>
-var cutoffTime = Date.now();
-var queryTime = Date.now();
-var transpose_seeking = false;
-var seektrack_seeking = false;
-var playspeed_seeking = false;
-var audiodelay_typing = false;
-var playspeed_typing = false;
-var subdelay_typing = false;
-var volume_changing = false;
-var toggleSwitch;
-var obj = {};
-function checkMobile() {
-	let check = false;
-	(function(a){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))) check = true;})(navigator.userAgent||navigator.vendor||window.opera);
-	return check;
-};
-var isMobile = checkMobile();
+	var cutoffTime = Date.now();
+	var queryTime = Date.now();
+  var transpose_seeking = false;
+  var seektrack_seeking = false;
+  var playspeed_seeking = false;
+  var audiodelay_typing = false;
+  var playspeed_typing = false;
+  var subdelay_typing = false;
+  var volume_changing = false;
+  var toggleSwitch;
+  var toggleSwitch1;
+  var obj = {};
+  function checkMobile() {
+    let check = false;
+    (function(a){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))) check = true;})(navigator.userAgent||navigator.vendor||window.opera);
+    return check;
+  };
+  var isMobile = checkMobile();
 
-function getSemitonesLabel(value) {return value>0 ? ("+"+value+"{{getString1(91)}}"):(value + "{{getString1(91)}}");}
-function getHHMMSS(value) {return (new Date(value*1000)).toISOString().substr(11, 8)}
-function setImgSrc(img, src) {if(img.attr('src')!=src)img.attr('src', src)}
+  function getSemitonesLabel(value) {
+    if (value > 0) {
+      return "+" + value + "{{getString1(91)}}";
+    } else {
+      return value + "{{getString1(91)}}";
+    }
+  }
 
-function getNowPlaying() {
-	queryTime = Date.now();
-	$.get('{{ url_for("nowplaying") }}').done(function (data) {
-		if(!data || queryTime<cutoffTime) return;
-		obj = JSON.parse(data);
-		if (obj.now_playing) {
-		var nowPlayingHtml = `<p style="margin-bottom: 5px">${obj.now_playing}</p>
-			<p class="has-text-success" style="margin-bottom: 5px"><i class="icon icon-adult" title="Current singer"></i>${obj.now_playing_user}</p>`;
+  function getHHMMSS(value) {
+  	return (new Date(value*1000)).toISOString().substr(11, 8);
+  }
 
-		if ($("#transpose")){
-			if(!transpose_seeking){
-				$("#transpose").val( obj.transpose_value );
-				$("#semitones-label").html(getSemitonesLabel(obj.transpose_value));
-				set_reset_key(obj.transpose_value!=0);
-			}
-			
-			if(!playspeed_seeking){
-				$("#playspeed").val( Math.round(obj.play_speed*100) );
-				var spd_val = parseFloat(obj.play_speed).toFixed(2);
-				if(spd_val>=0.8 && spd_val<=1.2)$("#playspeed").show();
-				else $("#playspeed").hide();
-				if(!playspeed_typing && obj.play_speed!=null){
-					$("#playspeed-val").html(obj.play_speed.toFixed(2));
-					set_reset_speed(obj.play_speed!=1);
+  function setImgSrc(img, src) {
+  	if(img.attr('src')!=src)
+  		img.attr('src', src)
+  }
+
+  function updateRepeatButton() {
+    $.get('/get_repeat_status', function(data) {
+        isRepeated = (data == 'True');
+        document.getElementById('repeatButton').style.backgroundColor = isRepeated ? '#4CAF50' : '#008CBA';
+        document.getElementById('repeatButton').innerText = isRepeated ? '{{getString1(215)}}' : '{{getString1(216)}}';
+    });
+  }
+
+  function getNowPlaying() {
+  		queryTime = Date.now();
+      $.get('{{ url_for("nowplaying") }}').done(function (data) {
+      	if(!data || queryTime<cutoffTime) return;
+        obj = JSON.parse(data);
+        if (obj.now_playing) {
+          var nowPlayingHtml = `<p style="margin-bottom: 5px">${obj.now_playing}</p>
+            <p class="has-text-success" style="margin-bottom: 5px"><i class="icon icon-mic-1" title="Current singer"></i>${obj.now_playing_user}</p>`;
+
+          if ($("#transpose")){
+            if(!transpose_seeking){
+              $("#transpose").val( obj.transpose_value );
+              $("#semitones-label").html(getSemitonesLabel(obj.transpose_value));
+              set_reset_key(obj.transpose_value!=0);
+            }
+            
+            if(!playspeed_seeking){
+              $("#playspeed").val( Math.round(obj.play_speed*100) );
+              var spd_val = parseFloat(obj.play_speed).toFixed(2);
+              if(spd_val>=0.8 && spd_val<=1.2)$("#playspeed").show();
+							else $("#playspeed").hide();
+							if(!playspeed_typing && obj.play_speed!=null){
+								$("#playspeed-val").html(obj.play_speed.toFixed(2));
+								set_reset_speed(obj.play_speed!=1);
+							}
+						}
+          }
+
+          $("#now-playing").html(nowPlayingHtml);
+          $(".control-box").show();
+
+          if($("#seektrack") && !seektrack_seeking){
+						$("#seektrack").attr({'max':obj.seektrack_max, 'value':obj.seektrack_value});
+						$("#seektrack").val(obj.seektrack_value);
+						$("#seektrack-val").text(getHHMMSS(obj.seektrack_value));
+						$("#seektrack-max").text(getHHMMSS(obj.seektrack_max));
+					}
+
+					if(obj.audio_delay!==null && !audiodelay_typing)
+						$("#delay-val").text(obj.audio_delay.toFixed(2));
+
+					if("subtitle_delay" in obj){
+						$("#subdelay-box").show();
+						if(obj.subtitle_delay!==null && !subdelay_typing)
+							$("#subdelay-val").text(obj.subtitle_delay.toFixed(1));
+						$('#subtitle-sel').css('text-decoration', obj.show_subtitle?"":"line-through");
+					} else {
+						$("#subdelay-box").hide();
+					}
+
+					var use_DNN = obj.vocal_info&0x40;
+					s3_enable(1, use_DNN?(obj.vocal_info&1):(obj.vocal_info&4));
+					s3_enable(3, use_DNN?(obj.vocal_info&2):(obj.vocal_info&8));
+					s3_go_to((obj.vocal_info>>4)&3, false);
+					if (obj.audio_track == 0) {
+						s2_go_to(1, false);
+					} else if (obj.audio_track == 1) {
+						s2_go_to(3, false);
+					}
+					console.log(obj.audio_track);
+
+					use_DNN ? $("#pytorch-logo").show():$("#pytorch-logo").hide();
+					
+					if(obj.vol_norm)
+						$("#vol").addClass('boxedText');
+					else
+						$("#vol").removeClass('boxedText');
+        } else {
+          $("#now-playing").html("{{getString1(69)}}");
+          $(".control-box").hide();
+        }
+
+        if (obj.up_next) {
+          $("#up-next").html(`<p style="margin-bottom: 5px">${obj.up_next}</p>
+            <p class="has-text-success"><i class="icon icon-mic-1" title="Next singer"></i>${obj.next_user}</p>`);
+        } else {
+          $("#up-next").html("{{getString1(70)}}");
+        }
+
+        if (obj.is_paused) {
+          $("#pause-resume").removeClass("icon-pause");
+          $("#pause-resume").addClass("icon-play");
+          setImgSrc($(".playing_gif"), '/static/images/now-playing.png');
+        } else {
+          $("#pause-resume").removeClass("icon-play");
+          $("#pause-resume").addClass("icon-pause");
+          setImgSrc($(".playing_gif"), '/static/images/now-playing.gif')
+        }
+
+				if("volume" in obj && !volume_changing)
+	        $("#vol").text(obj.volume);
+      });
+    }
+
+  function checkUser() {
+  	try{ return obj.now_playing_user=='Randomizer' || $('#current-user').text().trim()==obj.now_playing_user; }
+  	catch(err){ return false; }
+  }
+  
+  function set_reset_key(state){
+  	$("#reset_key").text(state?"{{getString1(204)}}":"{{getString1(68)}}");
+  	if(state)$("#reset_key").addClass('boxedText');
+  	else $("#reset_key").removeClass('boxedText');
+  }
+  
+  function set_reset_speed(state){
+  	$("#reset_speed").text(state?"{{getString1(205)}}":"{{getString1(199)}}");
+  	if(state)$("#reset_speed").addClass('boxedText');
+  	else $("#reset_speed").removeClass('boxedText');
+  }
+
+  $(function () {
+    $(".control-box").hide();
+    toggleSwitch = document.getElementsByClassName('redButton')[0];
+	toggleSwitch1 = document.getElementsByClassName('redButton')[1];
+
+    var slider = document.getElementById("transpose");
+    var slider_prev_value = 0;
+    var output = document.getElementById("semitones-label");
+    if (slider) {
+      // Update the current slider value (each time you drag the slider handle)
+      slider.oninput = function () {
+        output.innerHTML = getSemitonesLabel(slider.value);
+      };
+      slider.oninput()
+      slider_prev_value = slider.value;
+    }
+
+    $("#transpose").change(function () {
+      var value;
+      if (slider) {
+        value = slider.value;
+      } else {
+        value = 0;
+      }
+      if ( value != slider_prev_value ){
+        cutoffTime = Date.now();
+        $.get("/transpose/" + value);
+        output.innerHTML = getSemitonesLabel(slider.value);
+        slider_prev_value = value
+      }
+    });
+
+		var seektrack = document.getElementById("seektrack");
+		seektrack.onchange = function () {
+			cutoffTime = Date.now();
+			$.get("/seek/" + seektrack.value);
+    };
+    seektrack.oninput = function () {
+			$("#seektrack-val").text(getHHMMSS(seektrack.value));
+    };
+    
+    var speedtrack = document.getElementById("playspeed");
+		speedtrack.onchange = function () {
+			$.get("/play_speed/" + speedtrack.value/100);
+    };
+    speedtrack.oninput = function () {
+			$("#playspeed-val").text(speedtrack.value/100);
+    };
+
+    $("#pause-resume").click(function () {
+      $.get("/pause", function (is_paused) {
+				if (is_paused=="true") {
+					$("#pause-resume").removeClass("icon-pause");
+					$("#pause-resume").addClass("icon-play");
+				} else {
+					$("#pause-resume").removeClass("icon-play");
+					$("#pause-resume").addClass("icon-pause");
 				}
 			}
 		}
@@ -157,6 +323,37 @@ $(function () {
 	};
 	seektrack.oninput = function () {$("#seektrack-val").text(getHHMMSS(seektrack.value));};
 	
+	function s2_enable(n, val) {
+		var s2t = document.getElementById("s2t"+n);
+		if(val!=0){
+			s2t.onclick = function(){s2_go_to(n, true)};
+			s2t.style.color = '#ffffff';
+		} else {
+			s2t.onclick = null;
+			s2t.style.color = '#444444';
+		}
+	}
+
+	function s2_go_to(n, do_action) {
+		if(n != 1 && n != 3) n = 1;
+		for(var i of [1, 3]){
+			if(i==n) toggleSwitch1.classList.add('horizTranslate'+i);
+			else toggleSwitch1.classList.remove('horizTranslate'+i);
+		}
+		if(do_action){
+			cutoffTime = Date.now();
+			$.get("/track_select/"+(n==1 ? 0 : 1));
+		}
+	}
+	
+	function s3_enable(n, val) {
+		var s3t = document.getElementById("s3t"+n);
+		if(val!=0){
+			s3t.onclick = function(){s3_go_to(n, true)};
+			s3t.style.color = '#ffffff';
+		} else {
+			s3t.onclick = null;
+			s3t.style.color = '#444444';
 	var speedtrack = document.getElementById("playspeed");
 	speedtrack.onchange = function () {$.get("/play_speed/" + speedtrack.value/100);};
 	speedtrack.oninput = function () {$("#playspeed-val").text(speedtrack.value/100);};
@@ -259,6 +456,21 @@ function s3_go_to(n, do_action) {
 		if(i==n) toggleSwitch.classList.add('horizTranslate'+i);
 		else toggleSwitch.classList.remove('horizTranslate'+i);
 	}
+
+
+	var isRepeated = false;
+    function toggleRepeat() {
+        isRepeated = !isRepeated;
+		var repeatButton = document.getElementById('repeatButton');
+        repeatButton.style.backgroundColor = isRepeated ? '#4CAF50' : '#008CBA';
+		repeatButton.innerHTML = isRepeated ? '{{getString1(215)}}' : '{{getString1(216)}}';
+        if(isRepeated) {
+            $.get("/repeat_on");
+        } else {
+            $.get("/repeat_off");
+        }
+    }
+
 	if(do_action){
 		cutoffTime = Date.now();
 		$.get("/play_vocal/"+(n==2?'mixed':(n==1?'nonvocal':'vocal')));
@@ -275,6 +487,7 @@ function s3_enable(n, val) {
 		s3t.style.color = '#444444';
 	}
 }
+
 </script>
 
 {% endblock %} {% block header %}
@@ -302,6 +515,11 @@ body {
    -webkit-box-orient: vertical;
 }
 </style>
+<script>
+    window.onload = function() {
+        updateRepeatButton();
+    };
+</script>
 <h1>
 	{% block title %}{{getString1(74)}}
 	<img
@@ -334,6 +552,17 @@ body {
 						<div id="s3t2" style="color:#ffffff" class="legendText" onclick="s3_go_to(2,true)">{{getString1(66)}}</div>
 						<div id="s3t3" style="color:#ffffff" class="legendText" onclick="s3_go_to(3,true)">{{getString1(67)}}</div>
 				</div>
+		</div>
+		<!-- New element -->
+		<div id="s2-outer" style="position:relative; width:150px; height:50px;">
+			<div id="s2-inner" style="background-color: #222D41; width:150px; height:28px; left:0; position:relative; top:20px; border-radius:14px;">
+				<div class="redButton horizTranslate1" style="width:16px; height:16px; background-color:#DB3D2B; border-radius:8px; position:relative; top:6px; left:6px;"></div>
+			</div>
+	
+			<div id="s2-text" class="is-flex" style="width:150px; display:inline-block; left:0; position:absolute; top:0; font-family:Arial; font-size:12pt; text-align:center; justify-content: space-between">
+				<div id="s2t1" style="color:#ffffff" class="legendText" onclick="s2_go_to(1,true)">{{getString1(213)}}</div>
+				<div id="s2t3" style="color:#ffffff" class="legendText" onclick="s2_go_to(3,true)">{{getString1(214)}}</div>
+			</div>
 		</div>
 	</div>
 
@@ -450,6 +679,10 @@ body {
 		</div>
 	</div>
 	{% endif %}
+</div>
+
+<div style="margin-top: 20px;">
+    <button id="repeatButton" style="width: 100%; padding: 1.5em; border: none; background-color: #008CBA; color: white; font-size: 16px;" onclick="toggleRepeat()">Repeat</button>
 </div>
 
 {% endblock %}

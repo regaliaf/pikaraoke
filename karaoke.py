@@ -1,9 +1,10 @@
-import os, sys, io, random, time, json
+import os, sys, io, random, time, json, hashlib, datetime
 import logging, socket, subprocess, threading
 import multiprocessing as mp
 import shutil, psutil, traceback, tarfile, requests
 from subprocess import check_output
 from collections import *
+from tempfile import NamedTemporaryFile
 
 import numpy as np
 
@@ -67,6 +68,21 @@ class Karaoke:
 	volume_offset = 0
 	default_logo_path = os.path.join(base_path, "logo.png")
 	logical_volume = None   # for normalized volume
+	searched_file_location = False
+	play_history = []
+	saved_songs = []
+	audio_track = 0
+	repeat_song = False
+	song_stat = {}
+	default_favorite_structure = {
+		"name":"",
+		"song_path":"",
+		"play_count":1,
+		"user_list":[],
+		"last_play":"",
+	}
+	full_screen=True
+	audio_mask=1
 	status_dirty = True
 	event_dirty = threading.Event()
 
@@ -78,6 +94,10 @@ class Karaoke:
 		self.download_path = args.dl_path
 		self.volume_offset = self.volume = args.volume
 		self.logo_path = self.default_logo_path if args.logo_path == None else args.logo_path
+		self.searched_file_location = args.searched_file_location
+		self.saved_file_location=args.saved_file_location
+		self.json_path_to_saved_file_location = args.json_path_to_saved_file_location
+		self.stat_file_path = args.song_stat_filepath
 
 		# other initializations
 		self.platform = get_platform()
@@ -120,8 +140,14 @@ class Karaoke:
 		self.url = "%s://%s:%s" % (('https' if self.ssl else 'http'), self.ip, self.port)
 
 		# get songs from download_path
-		self.get_available_songs()
+		if not self.searched_file_location:
+			self.get_available_songs_in_saved()
+		else:
+			self.get_available_songs()
 		self.get_youtubedl_version()
+
+		# get favorite songs
+		self.get_song_stat()
 		
 		# Automatically upgrade yt-dlp if using pip
 		if not args.youtubedl_path:
@@ -142,6 +168,8 @@ class Karaoke:
 		if not self.hide_splash_screen:
 			self.initialize_screen(not args.windowed)
 			self.render_splash_screen()
+		else:
+			pygame.init()
 
 		self.cloud = args.cloud
 		if args.cloud:
@@ -157,6 +185,13 @@ class Karaoke:
 		output = ret_stderr.getvalue()
 		posi1 = output.find('versions:')
 		posi2 = output.find(')', posi1)
+		if posi1<=0 and posi2<=0:
+			old_stdout, sys.stdout = sys.stdout, io.StringIO()
+			pip.main(['index', 'versions', 'yt-dlp'])
+			ret_stdout, sys.stdout = sys.stdout, old_stdout
+			output = ret_stdout.getvalue()
+			posi1 = output.find('LATEST:')
+			posi2 = len(output)-1
 		assert posi1>0 and posi2>0
 		latest_version = output[posi1:posi2].split()[-1]
 		if self.youtubedl_version.replace('.0', '.') != latest_version.replace('.0', '.'):
@@ -518,7 +553,66 @@ class Karaoke:
 					self.songname_trans[fn] = trans
 
 		# self.available_songs = sorted(files_grabbed, key = lambda f: str.lower(os.path.basename(f)))
+		if  os.path.exists(self.json_path_to_saved_file_location):
+			try:
+				with open(self.json_path_to_saved_file_location, 'r') as f:
+					self.saved_songs = json.load(f)
+				self.saved_songs.update(self.songname_trans)
+				self.songname_trans = self.saved_songs
+			except Exception as e:
+				print(f"Error in loading exisitng songs {e}")
+		else:
+			os.makedirs(os.path.dirname(self.json_path_to_saved_file_location), exist_ok=True)
+			with open(self.json_path_to_saved_file_location, "w") as f:
+				json.dump(self.songname_trans, f)
 		self.available_songs = sorted(self.songname_trans, key = self.songname_trans.get)
+
+
+	def get_available_songs_in_saved(self):
+		logging.info("Fetching available songs in: " + self.saved_file_location)
+		files_grabbed = []
+		self.songname_trans = {}
+		for dirpath, dirnames, filenames in os.walk(self.saved_file_location):
+			for bn in filenames:
+				fn = os.path.join(dirpath, bn)
+				if not bn.startswith('.') and os.path.isfile(fn):
+					if os.path.splitext(fn)[1].lower() in media_types:
+						files_grabbed.append(fn)
+						trans = unidecode(self.filename_from_path(fn)).lower()
+						# strip leading non-transliterable symbols
+						while trans and not trans[0].islower() and not trans[0].isdigit():
+							trans = trans[1:]
+						self.songname_trans[fn] = trans
+
+		logging.info("Fetching available songs in: " + self.download_path)
+		files_grabbed = []
+		self.songname_trans_dl = {}
+		for bn in os.listdir(self.download_path):
+			fn = self.download_path + bn
+			if not bn.startswith('.') and os.path.isfile(fn):
+				if os.path.splitext(fn)[1].lower() in media_types:
+					files_grabbed.append(fn)
+					trans = unidecode(self.filename_from_path(fn)).lower()
+					# strip leading non-transliterable symbols
+					while trans and not trans[0].islower() and not trans[0].isdigit():
+						trans = trans[1:]
+					self.songname_trans_dl[fn] = trans
+
+		# self.available_songs = sorted(files_grabbed, key = lambda f: str.lower(os.path.basename(f)))
+		if  os.path.exists(self.json_path_to_saved_file_location):
+			with open(self.json_path_to_saved_file_location, 'r') as f:
+				saved_songs = json.load(f)
+		else:
+			saved_songs = {}
+			os.makedirs(os.path.dirname(self.json_path_to_saved_file_location), exist_ok=True)
+			with open(self.json_path_to_saved_file_location, "w") as f:
+				json.dump(saved_songs, f)
+		
+		self.songname_trans.update(saved_songs)
+		self.songname_trans.update(self.songname_trans_dl)
+		self.available_songs = sorted(self.songname_trans, key = self.songname_trans.get)
+		with open(self.json_path_to_saved_file_location, 'w') as f:
+			json.dump(self.songname_trans, f)
 
 	def get_all_assoc_files(self, song_path):
 		basename = os.path.basename(song_path)
@@ -594,7 +688,7 @@ class Karaoke:
 		elif self.omxclient != None:
 				self.omxclient.kill()
 
-	def play_file(self, file_path, extra_params = []):
+	def play_file(self, file_path, extra_params = [], audio_track=1):
 		self.switchingSong = True
 		if self.use_vlc:
 			if self.save_delays:
@@ -606,10 +700,10 @@ class Karaoke:
 			logging.info("Playing video in VLC: " + file_path)
 			if self.platform != 'osx':
 				extra_params1 += ['--drawable-hwnd' if self.platform == 'windows' else '--drawable-xid',
-				                  hex(pygame.display.get_wm_info()['window'])]
-			self.now_playing_slave = self.try_set_vocal_mode(self.vocal_mode, file_path)
+				                  hex(pygame.display.get_wm_info().get('window',0))]
+			self.now_playing_slave = self.create_temp_file_if_needed(self.try_set_vocal_mode(self.vocal_mode, file_path))
 			if os.path.isfile(self.now_playing_slave):
-				extra_params1 += [f'--input-slave={self.now_playing_slave}', '--audio-track=1']
+				extra_params1 += [f'--input-slave={self.now_playing_slave}', f'--audio-track={self.audio_track}']
 			if self.audio_delay:
 				extra_params1 += [f'--audio-desync={self.audio_delay * 1000}']
 			if self.subtitle_delay:
@@ -624,7 +718,7 @@ class Karaoke:
 			if self.normalize_vol and self.logical_volume is not None:
 				self.volume = self.logical_volume / np.sqrt(self.compute_volume(file_path))
 			if self.now_playing_transpose == 0:
-				xml = self.vlcclient.play_file(file_path, self.volume, extra_params + extra_params1)
+				xml = self.vlcclient.play_file(self.create_temp_file_if_needed(file_path), self.volume, extra_params + extra_params1)
 			else:
 				xml = self.vlcclient.play_file_transpose(file_path, self.now_playing_transpose, self.volume, extra_params + extra_params1)
 			self.has_subtitle = "<info name='Type'>Subtitle</info>" in xml
@@ -671,6 +765,8 @@ class Karaoke:
 		else:
 			logging.info("'%s' is adding song to queue: %s" % (user, song_path))
 			self.queue.append({"user": user, "file": song_path, "title": self.filename_from_path(song_path)})
+			self.update_song_stat(user, song_path)
+			self.update_queue_hash()
 			self.update_queue()
 			return True
 
@@ -750,6 +846,12 @@ class Karaoke:
 				return False
 		self.update_queue()
 		return True
+	
+	def randomize(self):
+		if self.queue:
+			print("Randomize current songs")
+			random.shuffle(self.queue)
+			self.update_queue_hash() 
 
 	def skip(self):
 		if self.is_file_playing():
@@ -929,18 +1031,80 @@ class Karaoke:
 	def try_set_vocal_mode(self, mode, now_playing_filename):
 		if mode not in ['mixed', 'vocal', 'nonvocal']:
 			mode = {1: 'nonvocal', 2: 'mixed', 3: 'vocal'}[self.get_vocal_mode()]
-		play_slave = '' if mode == 'mixed' else self.download_path + mode + '/' + ('' if self.use_DNN_vocal else '.') \
-		                                       + os.path.basename(now_playing_filename) + '.m4a'
-		if os.path.isfile(play_slave):
-			self.vocal_mode = mode
-		else:
-			play_slave = ''
-			self.vocal_mode = 'mixed'
+		
+		fn, _ = os.path.splitext(os.path.basename(now_playing_filename))
+		play_slave = '' if mode == 'mixed' else self.download_path + mode + '\\' + ('' if self.use_DNN_vocal else '.')  + fn + '.m4a'
+		if not os.path.isfile(play_slave):
+			play_slave = now_playing_filename
+		self.vocal_mode = mode
 		return play_slave
+
+	def track_select(self, idx=None):
+		if idx:
+			self.audio_track = idx
+		if self.use_vlc:
+			status_xml = self.vlcclient.command().text if self.is_paused else self.vlcclient.pause(False).text
+			info = self.vlcclient.get_info_xml(status_xml)
+			posi = info['position']*info['length']
+			self.play_file(self.now_playing_filename, [f'--start-time={posi}'] + (['--start-paused'] if self.is_paused else []), audio_track = idx)
+			print("track switch completed")
+		else:
+			logging.error("Not using VLC. Can't play vocal/nonvocal.")
+
+	def track_select_1(self, idx = None):
+		# idx 0: left audio track not setup 1:right setup audio track
+		self.switchingSong = True
+		if idx:
+			self.audio_track = idx
+		if self.use_vlc:
+			extra_params1 = []
+			extra_params1 += [f'--input-slave={self.now_playing_slave}', f'--audio-track={self.audio_track}']
+			file_path = self.now_playing_filename
+			logging.info("Change audio track in VLC: " + self.now_playing_filename + f" to audio track {idx}")
+			status_xml = self.vlcclient.command().text if self.is_paused else self.vlcclient.pause(False).text
+			info = self.vlcclient.get_info_xml(status_xml)
+			posi = info['position']*info['length']
+			extra_params1 += ([f'--start-time={posi}'] + (['--start-paused'] if self.is_paused else []))
+			if self.platform != 'osx':
+				extra_params1 += ['--drawable-hwnd' if self.platform == 'windows' else '--drawable-xid',
+				                  hex(pygame.display.get_wm_info()['window'])]
+			if self.audio_delay:
+				extra_params1 += [f'--audio-desync={self.audio_delay * 1000}']
+			if self.subtitle_delay:
+				extra_params1 += [f'--sub-delay={self.subtitle_delay * 10}']
+			if self.show_subtitle:
+				extra_params1 += [f'--sub-track=0']
+			if self.play_speed != 1:
+				extra_params1 += [f'--rate={self.play_speed}']
+			self.is_paused = ('--start-paused' in extra_params1)
+			if self.normalize_vol and self.logical_volume is not None:
+				self.volume = self.logical_volume / np.sqrt(self.compute_volume(file_path))
+			if self.now_playing_transpose == 0:
+				xml = self.vlcclient.play_file(file_path, self.volume, extra_params1)
+			else:
+				xml = self.vlcclient.play_file_transpose(file_path, self.now_playing_transpose, self.volume, extra_params1)
+			self.has_subtitle = "<info name='Type'>Subtitle</info>" in xml
+			self.has_video = "<info name='Type'>Video</info>" in xml
+			self.volume = round(float(self.vlcclient.get_val_xml(xml, 'volume')))
+			if self.normalize_vol:
+				self.media_vol = self.compute_volume(self.now_playing_filename)
+				self.logical_volume = self.volume * np.sqrt(self.media_vol)
+		else:
+			logging.info("Playing video in omxplayer: " + file_path)
+			self.omxclient.play_file(file_path)
+
+		self.switchingSong = False
+		self.render_splash_screen()  # remove old previous track
 
 	def play_vocal(self, mode = None, force = False):
 		# mode=vocal/nonvocal/mixed, or else (use current)
 		if self.use_vlc:
+			if mode == "mixed":
+				self.audio_track = 0
+			elif mode in ['vocal', 'nonvocal']:
+				self.audio_track = 1
+			else:
+				self.audio_track = self.audio_mask - self.audio_track
 			play_slave = self.try_set_vocal_mode(mode, self.now_playing_filename)
 			if not force and self.now_playing_slave == play_slave:
 				return
@@ -949,6 +1113,7 @@ class Karaoke:
 			posi = info['position']*info['length']
 			self.play_file(self.now_playing_filename, [f'--start-time={posi}'] + (['--start-paused'] if self.is_paused else []))
 			self.get_vocal_info(True)
+			print("vocal setup completed")
 		else:
 			logging.error("Not using VLC. Can't play vocal/nonvocal.")
 
@@ -956,6 +1121,12 @@ class Karaoke:
 		if '/nonvocal/' in self.now_playing_slave.replace('\\', '/'):
 			return 1
 		elif '/vocal/' in self.now_playing_slave.replace('\\', '/'):
+			return 3
+		elif self.vocal_mode == 'nonvocal':
+			return 1
+		elif self.vocal_mode == 'mixed':
+			return 2
+		elif self.vocal_mode == 'vocal':
 			return 3
 		return 2
 
@@ -966,10 +1137,12 @@ class Karaoke:
 		if not self.now_playing_filename:
 			return 0
 		mask = 0
-		bn = os.path.basename(self.now_playing_filename)
-		if os.path.isfile(f'{self.download_path}nonvocal/{bn}.m4a'):
+		bn, _ = os.path.splitext(os.path.basename(self.now_playing_filename))
+		# if os.path.isfile(f'{self.download_path}nonvocal/{bn}.m4a'):
+		if self.vocal_mode == 'nonvocal' or os.path.isfile(f'{self.download_path}nonvocal/{bn}.m4a'):
 			mask |= 0b00000001
-		if os.path.isfile(f'{self.download_path}vocal/{bn}.m4a'):
+		# if os.path.isfile(f'{self.download_path}vocal/{bn}.m4a'):
+		if self.vocal_mode == 'vocal' or os.path.isfile(f'{self.download_path}vocal/{bn}.m4a'):
 			mask |= 0b00000010
 		if os.path.isfile(f'{self.download_path}nonvocal/.{bn}.m4a'):
 			mask |= 0b00000100
@@ -1118,7 +1291,61 @@ class Karaoke:
 			self.media_vol = self.compute_volume(self.now_playing_filename)
 			self.update_logical_vol()
 		return str(self.logical_volume)
+	
+	def set_repeat_on(self):
+		self.repeat_song = True
+		return 1
+	
+	def set_repeat_off(self):
+		self.repeat_song = False
+		return
+	
+	def get_song_stat(self):
+		if os.path.exists(self.stat_file_path):
+			try:
+				with open(self.stat_file_path, 'r') as f:
+					data = json.load(f)
+				# Process data...
+				self.song_stat.update(data)
+				logging.info(f"{self.stat_file_path} favorite songs load succeed")
+			except Exception as e:
+				# Handle JSON decode error or other file read errors
+				os.rename(self.stat_file_path, self.stat_file_path + '.bak')
+				with open(self.stat_file_path, 'w') as f:
+					json.dump(self.song_stat, f)  # Create a new empty file
+				logging.info(f"Target file location has unsupported content format. Move current file to {self.stat_file_path+'.bak'} and created empty favorite songs file.")
+		else:
+			with open(self.stat_file_path, 'w') as f:
+				json.dump(self.song_stat, f)  # Create a new empty file
 
+	def save_song_stat(self):
+		try:
+			with open(self.stat_file_path, 'w') as f:
+				json.dump(self.song_stat, f)
+			logging.info(f"Current favorite songs has been saved to {self.stat_file_path}")
+		except:
+			logging.error(f"Favorite songs can't be saved to target location {self.stat_file_path}")
+
+	def update_song_stat(self, user, song_path):
+		song_name = self.filename_from_path(song_path)
+		current_song_stat = self.song_stat.setdefault(song_name, {
+			"name":song_name,
+			"song_path":song_path,
+			"play_count":0,
+			"user_list":[],
+			"last_play":datetime.datetime.now(),
+		})
+		current_song_stat["play_count"]+=1
+		if user not in current_song_stat["user_list"]:
+			current_song_stat["user_list"].append(user)
+		current_song_stat["last_play"] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+		self.song_stat[song_name] = current_song_stat
+		self.save_song_stat()
+
+	def get_favorite_song_list(self):
+		sorted_songs = sorted(self.song_stat.values(), key=lambda x: x['play_count'], reverse=True)
+		return sorted_songs
+	
 	def init_save_delays(self):
 		self.delays_dirty = False
 		try:
@@ -1150,11 +1377,15 @@ class Karaoke:
 		# Windows does not have tmux, vocal splitter can only be invoked from the main program
 		if self.platform == 'windows' or self.run_vocal:
 			self.vocal_restart()
+		
+		head = None
 
 		while self.running:
 			try:
 				if not self.is_file_playing() and self.now_playing != None:
 					self.reset_now_playing()
+				if self.repeat_song and head and not self.is_file_playing():
+					self.play_file(head['file'])
 				if self.queue:
 					if not self.is_file_playing():
 						self.reset_now_playing()
@@ -1174,8 +1405,9 @@ class Karaoke:
 								self.streamer_restart(1)
 							self.firstSongStarted = True
 						self.now_playing_user = head["user"]
+						self.update_queue_hash()
 						self.update_queue()
-				elif (self.full_screen and not pygame.display.get_active()) and not self.is_file_playing():
+				elif (not pygame.display.get_active() and self.full_screen ) and not self.is_file_playing():
 					self.pygame_reset_screen()
 				self.handle_run_loop()
 			except KeyboardInterrupt:
@@ -1189,4 +1421,26 @@ class Karaoke:
 		if vplayer is not None: vplayer.stop()
 		self.auto_save_delays()
 		time.sleep(1)
+		(self.vlcclient if self.use_vlc else self.omxclient).kill()
+
+	def create_temp_file_if_needed(self, original_path):
+		if '&' in original_path:
+			# temp_files = []
+			# base_dir, original_filename = os.path.split(original_path)
+			# original_basename, original_ext = os.path.splitext(original_filename)
+			# for track_type in ['vocal', 'nonvocal']:
+			# 	track_path = os.path.join(base_dir, track_type, f"{original_basename}.m4a")
+			# 	if os.path.exists(track_path):
+			# 		with NamedTemporaryFile(delete=True, suffix='.m4a', dir=os.path.join(base_dir, track_type)) as temp_file:
+			# 			temp_track_path = temp_file.name
+			# 			shutil.copy2(track_path, temp_track_path)
+			# 			temp_files.append(temp_track_path)
+			# 			print(f"Created a temporary {track_type} track file: {temp_track_path}")
+			with NamedTemporaryFile(delete=True, suffix=os.path.splitext(original_path)[1]) as temp_file:
+				temp_video_path = temp_file.name
+			shutil.copy2(original_path, temp_video_path)
+			print(f"Created a temporary video file: {temp_video_path}")
+			return temp_video_path
+		else:
+			return original_path
 		if vplayer is not None: vplayer.kill()

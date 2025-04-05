@@ -4,7 +4,7 @@ import subprocess, zipfile
 
 import requests
 
-from lib.get_platform import *
+from lib.get_platform import get_platform
 from types import SimpleNamespace
 from html import unescape
 
@@ -61,6 +61,7 @@ class VLCClient:
 			"--extraintf", "http",
 			"--http-port", "%s" % self.port,
 			"--http-password", self.http_password,
+			"--sub-track", "0",
 			"--no-embedded-video",
 			"--no-keyboard-events",
 			"--no-mouse-events",
@@ -70,6 +71,7 @@ class VLCClient:
 			"--no-loop",
 			"--no-repeat",
 			"--mouse-hide-timeout", "0",
+			"--stop-time", "68400.000"
 		]
 		if self.platform == "osx":
 			self.cmd_base += [
@@ -140,13 +142,15 @@ class VLCClient:
 					self.process.wait(2)
 				except:
 					self.process.kill()
+			if self.platform == "windows":
+				file_path = r"{}".format(file_path.replace('/', '\\'))
 			command = self.cmd_base + params + [file_path]
 			if self.platform == 'osx' and not os.K.full_screen:
 				command.remove('--fullscreen')
 				command.remove('--macosx-nativefullscreenmode')
 			logging.info("VLC Command: %s" % command)
 
-			self.process = subprocess.Popen(command, stdin = subprocess.PIPE)
+			self.process = subprocess.Popen(command, shell = (self.platform == "windows"), stdin = subprocess.PIPE)
 
 			# wait for the process to start
 			while self.process.poll() is not None:
@@ -157,7 +161,7 @@ class VLCClient:
 				time.sleep(0.1)
 				req = self.command("", False)
 				xml = req.text
-				if "<info name='Type'>Video</info>" not in xml and "<info name='Type'>Audio</info>" not in xml:
+				if not self.K.is_paused and self.get_val_xml(xml, 'state') == 'stopped':
 					pass
 				elif req.status_code == 200:
 					break
@@ -264,7 +268,7 @@ class VLCClient:
 		try:
 			if xml is None:
 				xml = self.get_status()
-			return {key: self.cast_float(self.get_val_xml(xml, key)) for key in ['position', 'length', 'volume', 'time', 'audiodelay', 'state', 'subtitledelay', 'rate']}
+			return {key: self.cast_float(self.get_val_xml(xml, key)) for key in ['position', 'length', 'volume', 'time', 'audiodelay', 'state', 'subtitledelay']}
 		except:
 			return {}
 

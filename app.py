@@ -186,6 +186,7 @@ def f_home():
 		audio_delay = s['audiodelay'],
 		play_speed = s['rate'],
 		vocal_info = K.get_vocal_info(),
+		audio_track = K.audio_track,
 	)
 
 
@@ -210,7 +211,8 @@ def nowplaying(return_json=True):
 			"audio_delay": s['audiodelay'],
 			"vol_norm": K.normalize_vol,
 			"play_speed": s['rate'],
-			"vocal_info": K.get_vocal_info()
+			"vocal_info": K.get_vocal_info(),
+			"audio_track": K.audio_track,
 		}
 		if K.has_subtitle:
 			rc['subtitle_delay'] = s['subtitledelay']
@@ -284,11 +286,12 @@ def user_rename(old_name, new_name):
 @app.route("/get_vocal_todo_list/<vocal_device>")
 def get_vocal_todo_list(vocal_device):
 	K.vocal_device = vocal_device
-	last_completed = request.headers['last_completed']
+	last_completed = request.headers.get('last_completed', None)
 	if last_completed in K.rename_history:
 		K.rename(last_completed, os.path.splitext(K.rename_history[last_completed])[0])
 		K.rename_history.pop(last_completed)
 	q = ([K.now_playing_filename] if K.now_playing_filename else []) + [i['file'] for i in K.queue]
+	q = [song for song in q if song not in K.saved_songs]
 	return json.dumps({'download_path': K.download_path, 'queue': q, 'use_DNN': K.use_DNN_vocal})
 
 
@@ -319,6 +322,24 @@ def f_queue():
 	ip2pane[request.remote_addr] = 'queue'
 	return render_template("f_queue.html", getString1 = lambda ii: getString1(request.client_lang, ii), queue = K.queue, admin = is_admin())
 
+@app.route("/repeat_on")
+def set_repeat_on():
+	K.set_repeat_on()
+	return ''
+
+@app.route("/repeat_off")
+def set_repeat_off():
+	K.set_repeat_off()
+	return ''
+
+@app.route("/get_repeat_status", methods = ["GET"])
+def get_repeat_status():
+	return str(K.repeat_song)
+
+@app.route("/randomize")
+def randomize():
+	K.randomize()
+	return ''
 
 @app.route("/get_queue", methods = ["GET"])
 def get_queue():
@@ -420,6 +441,10 @@ def play_vocal(mode):
 	K.play_vocal(mode)
 	return ''
 
+@app.route("/track_select/<idx>", methods = ["GET"])
+def track_select(idx):
+	K.track_select(idx)
+	return ''
 
 @app.route("/play_speed/<speed>", methods = ["GET"])
 def play_speed(speed):
@@ -553,10 +578,10 @@ def browse():
 
 	results_per_page = 500
 	pagination = Pagination(css_framework = 'bulma', page = page, total = len(songs), search = search, search_msg = getString2(103),
-	                        record_name = getString2(101), display_msg = getString2(102), per_page = results_per_page)
+	record_name = getString2(101), display_msg = getString2(102), per_page = results_per_page)
 	start_index = (page - 1) * (results_per_page - 1)
 	return render_template(
-		"files.html",
+		"select.html",
 		getString1 = getString2,
 		pagination = pagination,
 		sort_order = sort_order,
@@ -606,6 +631,66 @@ def f_browse():
 		songs = songs[start_index:start_index + results_per_page],
 		admin = is_admin()
 	)
+
+@app.route("/select", methods = ["GET"])
+def select():
+    page = request.args.get(get_page_parameter(), type = int, default = 1)
+    letter = request.args.get('letter')
+    search_query = request.args.get('q')
+
+    available_songs = K.available_songs
+    if letter:
+        if (letter == "numeric"):
+            available_songs = [k for k,v in K.songname_trans.items() if not v[0].islower()]
+        else:
+            available_songs = [k for k,v in K.songname_trans.items() if v.startswith(letter)]
+    
+    matching_songs = []
+    if search_query:
+        search_terms = search_query.split()
+        for song in available_songs:
+            if all(term.lower() in song.lower() for term in search_terms):
+                matching_songs.append(song)
+        available_songs = matching_songs
+
+    getString2 = lambda ii: getString1(request.client_lang, ii)
+
+    if "sort" in request.args and request.args["sort"] == "date":
+        songs = sorted(available_songs, key = lambda x: os.path.getctime(x))
+        songs.reverse()
+        sort_order = "Date"
+        sort_order_text = getString2(99)
+    else:
+        songs = available_songs
+        sort_order = "Alphabetical"
+        sort_order_text = getString2(100)
+
+    results_per_page = 500
+    pagination = Pagination(css_framework = 'bulma', page = page, total = len(songs), search = False, search_msg = getString2(103),
+                            record_name = getString2(101), display_msg = getString2(102), per_page = results_per_page)
+    start_index = (page - 1) * (results_per_page - 1)
+    return render_template(
+        "select.html",
+        getString1 = getString2,
+        pagination = pagination,
+        sort_order = sort_order,
+        sort_order_text = sort_order_text,
+        site_title = site_name,
+        letter = letter,
+        title = getString2(98),
+        songs = songs[start_index:start_index + results_per_page],
+        admin = is_admin()
+    )
+@app.route('/favorite')
+def favorite():
+    songs_data = K.get_favorite_song_list()  # 确保这个函数能返回你需要的歌曲数据
+    return render_template('favorite.html', songs=songs_data)
+
+@app.route('/get_songs_data')
+def get_songs_data():
+    songs_data = K.get_favorite_song_list()  # 确保这个函数能返回你需要的歌曲数据
+    return jsonify(songs_data)
+
 
 def transform_boolean(dct, S):
 	return {k: ((v=='on') if k in S else v) for k, v in dct.items()}
@@ -995,6 +1080,16 @@ def get_default_browser_cookie(platform):
 	except:
 		return ''
 	ret = os.path.expandvars(def_cookie_loc[platform][default_browser])
+	# destination = 'tmp\\cookies'
+	# # 尝试复制cookie文件到指定目录
+	# try:
+	# 	if platform == 'windows' and default_browser == 'chrome':
+	# 		source = ret + '\\Cookies'
+	# 		shutil.copy(source, destination)
+	# except Exception as e:
+	# 	ret = destination  # 更新ret为复制好的cookie路径
+	# 	if not os.path.exists(destination):  # 检查目标位置是否有已有的cookie
+	# 		raise ValueError(f"Error: {e}. Please close Chrome and try again.")
 	return f'{default_browser}:{ret}' if ret else ''
 
 
@@ -1003,7 +1098,7 @@ if __name__ == "__main__":
 	default_port = 5000
 	default_volume = 0
 	default_splash_delay = 3
-	default_log_level = logging.INFO
+	default_log_level = logging.DEBUG
 
 	default_dl_dir = get_default_dl_dir()
 	default_omxplayer_path = "/usr/bin/omxplayer"
@@ -1162,6 +1257,18 @@ if __name__ == "__main__":
 		'--cloud', '-C',
 		default='',
 		help='cloud URL for DNN-based vocal split and speech recognition',
+	)
+	parser.add_argument(
+		"-S", "--searched-file-location", help = "provide a file location that stores the searched files", action="store_false", default=True
+	)
+	parser.add_argument(
+		"--saved-file-location", help="local mkv song file location", default="Z:\\others\\mkv歌库"
+	)
+	parser.add_argument(
+		"--json-path-to-saved-file-location", help="json file that contains all local mkv paths", default=".\\songs\\available_songs.json"
+	)
+	parser.add_argument(
+		"-H", "--song-stat-filepath", help="file location for song statistics", default=".\\songs\\song_stat.json"
 	)
 	args = parser.parse_args()
 

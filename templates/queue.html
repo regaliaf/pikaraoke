@@ -123,13 +123,21 @@
     getQueue();
     setInterval(function() { getQueue() }, 1500);
   });
+
+  function shuffleQueue() {
+    document.getElementById('shuffleButton').style.backgroundColor = 'lightgreen';  // Reset color to light green
+    $.get('/randomize', function(data) {
+        // handle response if necessary
+    });
+  }
 </script>
 
 {% endblock %} 
 
 {% block header %}
 <h1 class>{% block title %}{{getString1(112)}}{% endblock %}</h1>
-{% endblock %} 
+<button id="shuffleButton" style="width: 100%; padding: 1.5em; background-color: lightgreen; font-size: 25px" onmousedown="this.style.backgroundColor='green'" onmouseup="shuffleQueue()">{{getString1(217)}}</button>
+{% endblock %}
 
 {% block content %} 
 

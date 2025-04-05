@@ -176,7 +176,7 @@ def get_next_file(cuda_device):
 	if not os.path.isdir(song_path+'/nonvocal') and not os.path.isdir(song_path+'/vocal'):
 		return None
 	for fn in obj['queue']:
-		bn = ('' if use_DNN else '.')+os.path.basename(fn)
+		bn = ('' if use_DNN else '.')+os.path.splitext(os.path.basename(fn))[0]
 		if os.path.isdir(song_path+'/nonvocal') and not os.path.isfile(f'{song_path}/nonvocal/{bn}.m4a'):
 			return os.path.basename(fn)
 		if os.path.isdir(song_path+'/vocal') and not os.path.isfile(f'{song_path}/vocal/{bn}.m4a'):
@@ -185,9 +185,10 @@ def get_next_file(cuda_device):
 	# get from listing directory
 	for bn in [i for i in os.listdir(song_path) if not i.startswith('.') and os.path.isfile(song_path+'/'+i)]:
 		bn1 = ('' if use_DNN else '.')+bn
-		if os.path.isdir(song_path+'/nonvocal') and not os.path.isfile(f'{song_path}/nonvocal/{bn1}.m4a'):
+		name_only, _ = os.path.splitext(bn1)
+		if os.path.isdir(song_path+'/nonvocal') and not os.path.isfile(f'{song_path}/nonvocal/{name_only}.m4a'):
 			return bn
-		if os.path.isdir(song_path+'/vocal') and not os.path.isfile(f'{song_path}/vocal/{bn1}.m4a'):
+		if os.path.isdir(song_path+'/vocal') and not os.path.isfile(f'{song_path}/vocal/{name_only}.m4a'):
 			return bn
 
 	return None
@@ -243,26 +244,31 @@ def main(argv):
 			time.sleep(2)
 			continue
 
+		if not os.path.exists(song_path+'/'+next_file):
+			continue
+
 		# run vocal splitter on next_file
 		print(f'Start processing {next_file} :')
 		ffm_video2wav(song_path+'/'+next_file, in_wav)
+
+		fn, ext = os.path.splitext(next_file)
 
 		if use_DNN:
 			split_vocal_by_dnn(in_wav, out_wav_nonvocal, out_wav_vocal, args)
 			if os.path.isdir(song_path+'/nonvocal'):
 				ffm_wav2m4a(out_wav_nonvocal, out_m4a_nonvocal)
-				shutil.move(out_m4a_nonvocal, f'{song_path}/nonvocal/{next_file}.m4a')
+				shutil.move(out_m4a_nonvocal, f'{song_path}/nonvocal/{fn}.m4a')
 			if os.path.isdir(song_path+'/vocal'):
 				ffm_wav2m4a(out_wav_vocal, out_m4a_vocal)
-				shutil.move(out_m4a_vocal, f'{song_path}/vocal/{next_file}.m4a')
+				shutil.move(out_m4a_vocal, f'{song_path}/vocal/{fn}.m4a')
 		else:
 			split_vocal_by_stereo(in_wav, out_wav_nonvocal, out_wav_vocal)
 			if os.path.isdir(song_path+'/nonvocal'):
 				ffm_wav2m4a(out_wav_nonvocal, out_m4a_nonvocal)
-				shutil.move(out_m4a_nonvocal, f'{song_path}/nonvocal/.{next_file}.m4a')
+				shutil.move(out_m4a_nonvocal, f'{song_path}/nonvocal/.{fn}.m4a')
 			if os.path.isdir(song_path+'/vocal'):
 				ffm_wav2m4a(out_wav_vocal, out_m4a_vocal)
-				shutil.move(out_m4a_vocal, f'{song_path}/vocal/.{next_file}.m4a')
+				shutil.move(out_m4a_vocal, f'{song_path}/vocal/.{fn}.m4a')
 		last_completed = next_file
 
 

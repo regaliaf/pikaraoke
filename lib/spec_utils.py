@@ -24,9 +24,12 @@ def crop_center(h1, h2):
 
 
 def wave_to_spectrogram(wave, hop_length, n_fft):
-    spec_left = librosa.stft(wave[0], n_fft=n_fft, hop_length=hop_length)
-    spec_right = librosa.stft(wave[1], n_fft=n_fft, hop_length=hop_length)
-    spec = np.asarray([spec_left, spec_right])
+    wave_left = np.asfortranarray(wave[0])
+    wave_right = np.asfortranarray(wave[1])
+
+    spec_left = librosa.stft(wave_left, n_fft=n_fft, hop_length=hop_length)
+    spec_right = librosa.stft(wave_right, n_fft=n_fft, hop_length=hop_length)
+    spec = np.asfortranarray([spec_left, spec_right])
 
     return spec
 
@@ -170,11 +173,9 @@ if __name__ == "__main__":
     import sys
 
     X, _ = librosa.load(
-        sys.argv[1], sr=44100, mono=False, dtype=np.float32, res_type='kaiser_fast'
-    )
+        sys.argv[1], sr=44100, mono=False, dtype=np.float32, res_type='kaiser_fast')
     y, _ = librosa.load(
-        sys.argv[2], sr=44100, mono=False, dtype=np.float32, res_type='kaiser_fast'
-    )
+        sys.argv[2], sr=44100, mono=False, dtype=np.float32, res_type='kaiser_fast')
 
     X, y = align_wave_head_and_tail(X, y, 44100)
     X_spec = wave_to_spectrogram(X, 1024, 2048)

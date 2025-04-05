@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block scripts %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    function updateTable() {
+        $.getJSON('/get_songs_data', function(data) {
+            var tableBody = '';
+            for (var i = 0; i < data.length; i++) {
+                var userCounts = {};
+                data[i].user_list.forEach(function(user) {
+                    userCounts[user] = (userCounts[user] || 0) + 1;
+                });
+                var mostFrequentUser = Object.keys(userCounts).reduce((a, b) => userCounts[a] > userCounts[b] ? a : b);
+            
+                tableBody += '<tr>';
+                tableBody += '<td><a class="add-song-link has-text-weight-bold has-text-success" title={{getString1(97)}}"' + data[i].name + '" href="/enqueue?song=' + encodeURIComponent(data[i].song_path) + '&user="><i class="icon icon-list-add"></i></a></td>';
+                tableBody += '<td>' + data[i].name + '</td>';
+                tableBody += '<td>' + data[i].play_count + '</td>';
+                tableBody += '<td>' + data[i].user_list.length + '</td>';
+                tableBody += '<td>' + mostFrequentUser + '</td>'; 
+                tableBody += '<td>' + data[i].last_play + '</td>';
+                tableBody += '</tr>';
+            }
+            $('tbody').html(tableBody);
+
+            $('a.add-song-link').click(function(e) {
+            e.preventDefault();
+            var user = Cookies.get("user"); 
+            if (!user) {
+                let name = window.prompt("{{getString1(92)}}");
+                if (name) {
+                    Cookies.set("user", name, { expires: 3650 });
+                    user = Cookies.get("user");
+                }
+            }
+            $.get(this.href + encodeURIComponent(user), function (data1) {
+                var obj = JSON.parse(data1);
+                if (obj.success)
+                    showNotification("{{getString1(93)}}" + obj.song, "is-success");
+                else
+                    showNotification("{{getString1(94)}}" + obj.song, "is-danger");
+            });
+        });
+        });
+    }
+
+    $(document).ready(function() {
+        updateTable(); 
+        setInterval(updateTable, 50000);  // 更新频率为 50 秒
+    });
+    
+</script>
+{% endblock %}
+
+{% block header %}
+<h1>{% block title %}
+  {{getString1(218)}}</h1>
+{% endblock %}
+{% endblock %}
+
+{% block content %}
+<table>
+  <thead>
+      <tr>
+          <th>{{getString1(119)}}</th>
+          <th>{{getString1(219)}}</th>
+          <th>{{getString1(220)}}</th>
+          <th>{{getString1(221)}}</th>
+          <th>{{getString1(223)}}</th>
+          <th>{{getString1(222)}}</th>
+      </tr>
+  </thead>
+  <tbody>
+      <!-- Table rows will be populated by the JavaScript -->
+  </tbody>
+</table>
+{% endblock %}

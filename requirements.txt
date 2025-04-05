@@ -6,6 +6,7 @@ pinyin
 wheel
 tempora==1.14.0
 jaraco.functools==2.0
+cherrypy
 six
 Flask
 flask-sock
